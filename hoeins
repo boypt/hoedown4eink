@@ -1,0 +1,13 @@
+#!/bin/sh
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+ASSISTANT_DIR="$SCRIPT_DIR/plugins/assistant.koreader"
+
+if [[ ! -d $ASSISTANT_DIR ]]; then
+    echo "Assistant plugin directory not found: $ASSISTANT_DIR"
+    exit 1
+fi
+
+tar xvzf $SCRIPT_DIR/lua-hoedown_*.tgz -C $ASSISTANT_DIR && \
+    echo "Extracted lua-hoedown files to $ASSISTANT_DIR" && \
+    rm -f $SCRIPT_DIR/lua-hoedown_*.tgz hoeins

@@ -1,4 +1,4 @@
 BUILD
 OUTPUT
 *.swp
-*.tgz
+/*.tgz
