@@ -1,7 +1,7 @@
 #!/bin/sh
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-ASSISTANT_DIR="$SCRIPT_DIR/plugins/assistant.koreader"
+ASSISTANT_DIR="$SCRIPT_DIR/plugins/assistant.koplugin"
 
 if [[ ! -d $ASSISTANT_DIR ]]; then
     echo "Assistant plugin directory not found: $ASSISTANT_DIR"
