@@ -13,6 +13,8 @@ mkdir -p $OUTPUTDIR $BUILDDIR
 build_hoedown() {
 
     local TOOLCHIAN_PREFIX=${TOOLCHAIN_PREFIX:-""}
+    local LIBOBJ="libhoedown.so.3"
+
     cd $BUILDDIR
     echo "Cloning hoedown repository..."
     git clone --depth 1 https://github.com/hoedown/hoedown.git
@@ -22,11 +24,11 @@ build_hoedown() {
     make clean
     make CC="${TOOLCHIAN_PREFIX}gcc"
 
-    echo "Stripping libhoedown.so.3..."
-    ${TOOLCHIAN_PREFIX}strip libhoedown.so.3
+    echo "Stripping $LIBOBJ..."
+    ${TOOLCHIAN_PREFIX}strip $LIBOBJ
 
     mkdir -p "$OUTPUTDIR/lib/"
-    install -m644 libhoedown.so.3 "$OUTPUTDIR/lib/"
+    install -m644 $LIBOBJ "$OUTPUTDIR/lib/"
 }
 
 # Function to check out lua-resty-hoedown
