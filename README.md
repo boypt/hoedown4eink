@@ -27,6 +27,19 @@ sh hoeins
 # once finished, the files `hoeins` and lua-hoedown_XXXX.tgz are removed.
 ```
 
+Then restart KOReader.
+
+## Verify hoedown is working
+```sh
+# open Termintal (Menu->Tools->More Tools>Terminal emulator->Open terminal session)
+
+grep markdown crash.log
+```
+
+A line like this means the plugin is using hoedown.
+
+`07/22/25-16:14:44 INFO  Using hoedown (C binding) for markdown parsing`
+
 ## Build your own
 
 setup [koxtoolchain](https://github.com/koreader/koxtoolchain). and setup the target env you need.
