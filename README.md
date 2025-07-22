@@ -3,7 +3,7 @@ shell script to build libhoedown and lua-resty-hoedown for eink devices (KOReade
 
 This script is aiming at providing hoedown native support for `asstiant.koreader`.
 
-The release files are crosscompiled using KOReader's (koxtoolchain)[https://github.com/koreader/koxtoolchain].
+The release files are crosscompiled using KOReader's [koxtoolchain](https://github.com/koreader/koxtoolchain).
 
 Below are tested device / platform for different tagged version.
 
@@ -29,7 +29,7 @@ sh hoeins
 
 ## Build your own
 
-setup KOReader's (koxtoolchain)[https://github.com/koreader/koxtoolchain]. and setup the target env you need.
+setup [koxtoolchain](https://github.com/koreader/koxtoolchain). and setup the target env you need.
 
 #### example
 
