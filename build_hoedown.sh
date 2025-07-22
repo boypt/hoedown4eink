@@ -54,6 +54,11 @@ package_files() {
 }
 
 # Main script execution
+ARG1=${1:-}
+[[ -n $ARG1 ]] && command -v ${ARG1}gcc >/dev/null 2>&1 && {
+    export TOOLCHAIN_PREFIX=${ARG1}
+}
+
 build_hoedown
 checkout_lua_resty_hoedown
 package_files
