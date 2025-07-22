@@ -12,8 +12,8 @@ mkdir -p $OUTPUTDIR $BUILDDIR
 # Function to build hoedown
 build_hoedown() {
 
-    local $TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX:-""}
     local LIBOBJ="libhoedown.so.3"
+    [[ -z $TOOLCHAIN_PREFIX ]] && TOOLCHAIN_PREFIX=""
 
     cd $BUILDDIR
     echo "Cloning hoedown repository..."
