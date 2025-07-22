@@ -7,7 +7,7 @@ The release files are crosscompiled using KOReader's [koxtoolchain](https://gith
 
 Below are tested device / platform for different tagged version.
 
-Download from the release page.
+Download from the [release](https://github.com/boypt/hoedown4eink/releases) page.
 
 | Device            | Hoedown file|
 |-------------------|-------------|
