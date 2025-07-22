@@ -22,10 +22,10 @@ build_hoedown() {
 
     echo "Building hoedown..."
     make clean
-    make CC="${$TOOLCHAIN_PREFIX}gcc"
+    make CC="${TOOLCHAIN_PREFIX}gcc"
 
     echo "Stripping $LIBOBJ..."
-    ${$TOOLCHAIN_PREFIX}strip $LIBOBJ
+    ${TOOLCHAIN_PREFIX}strip $LIBOBJ
 
     mkdir -p "$OUTPUTDIR/lib/"
     install -m644 $LIBOBJ "$OUTPUTDIR/lib/"
@@ -47,9 +47,9 @@ package_files() {
 
     cd OUTPUT
     local PACKAGETAG=
-    [[ -n $$TOOLCHAIN_PREFIX ]] &&
-        PACKAGETAG=$(echo $$TOOLCHAIN_PREFIX | cut -d- -f2)
-    [[ -z $$TOOLCHAIN_PREFIX ]] && PACKAGETAG="$(uname -m)"
+    [[ -n $TOOLCHAIN_PREFIX ]] &&
+        PACKAGETAG=$(echo $TOOLCHAIN_PREFIX | cut -d- -f2)
+    [[ -z $TOOLCHAIN_PREFIX ]] && PACKAGETAG="$(uname -m)"
     tar -czvf ../lua-hoedown_${PACKAGETAG}.tgz .
 }
 
