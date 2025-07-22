@@ -17,7 +17,8 @@ build_hoedown() {
 
     cd $BUILDDIR
     echo "Cloning hoedown repository..."
-    git clone --depth 1 https://github.com/hoedown/hoedown.git
+    [[ ! -d hoedown ]] && \
+        git clone --depth 1 https://github.com/hoedown/hoedown.git
     cd hoedown
 
     echo "Building hoedown..."
@@ -35,7 +36,8 @@ build_hoedown() {
 checkout_lua_resty_hoedown() {
     cd "$SCRIPTDIR"
     echo "Cloning lua-resty-hoedown repository..."
-    git clone --depth 1 https://github.com/bungle/lua-resty-hoedown.git
+    [[ ! -d lua-resty-hoedown ]] && \
+        git clone --depth 1 https://github.com/bungle/lua-resty-hoedown.git
     cd lua-resty-hoedown
     tar c lib | tar x -C ../OUTPUT
 }
