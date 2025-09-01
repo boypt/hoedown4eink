@@ -48,67 +48,46 @@ local function http_get_api(url)
     return body_string, status_code
 end
 
--- Function to make an HTTP(S) GET request for a file download
--- This version expects a direct file download, not JSON API
--- Returns body (as string), status_code, or nil, error_message
-local function http_get_file(url)
-    local response_body_table = {}
-    local success, status_code, headers, status_line = pcall(function()
+-- Function to download a file from a URL, streaming it directly to a file
+-- to avoid high memory usage.
+-- Returns true on success, nil, error_message on failure
+local function download_file(url, filename)
+    print(string.format("Attempting to download from '%s' to '%s'", url, filename))
+
+    local file_handle, err_open = IO.open(filename, "wb")
+    if not file_handle then
+        return nil, "Failed to open file for writing: " .. filename .. " - " .. tostring(err_open)
+    end
+
+    -- Use a protected call to ensure the file handle is closed even if the request fails
+    local ok, status_code, headers, status_line = pcall(function()
         return socket.skip(1, http.request {
             url = url,
-            -- No specific 'Accept' header for raw file downloads unless specified by server
-            -- User-Agent is good practice
             headers = {
                 ["User-Agent"] = "Lua-GitHub-Downloader/1.0 (https://github.com/<your_github_username>/<your_script_repo>)"
             },
-            sink = ltn12.sink.table(response_body_table)
+            sink = ltn12.sink.file(file_handle)
         })
     end)
 
-    if not success then
-        return nil, string.format("HTTP request for file failed: %s", tostring(status_code)) -- status_code here is the error msg
-    end
+    file_handle:close()
 
-    local body_string = table.concat(response_body_table)
+    if not ok then
+        os.remove(filename) -- Cleanup partial file on request error
+        return nil, string.format("HTTP request for file failed: %s", tostring(status_code)) -- status_code is the error message
+    end
 
     if not status_code then
+        os.remove(filename) -- Cleanup
         return nil, "No status code received for file download."
     end
-    
-    return body_string, status_code
-end
 
-
--- Function to download a file from a URL
--- Returns true on success, nil, error_message on failure
-local function download_file(url, filename)
-    print(string.format("Attempting to download '%s' from:\n%s", filename, url))
-
-    local body, status = http_get_file(url)
-
-    if not body then
-        return nil, string.format("Failed to get file data from %s: %s", url, status)
+    if status_code >= 400 then
+        os.remove(filename) -- Cleanup file that might contain an error message
+        return nil, string.format("Failed to download file: Server responded with status %s for %s", status_code, url)
     end
 
-    -- GitHub download URLs might redirect, socket.http usually follows them,
-    -- but the final status could still be non-200 for other issues.
-    if status >= 400 then
-        return nil, string.format("Failed to download file: Server responded with status %s for %s", status, url)
-    end
-
-    local file, err = IO.open(filename, "wb") -- Open in binary write mode
-    if not file then
-        return nil, "Failed to open file for writing: " .. filename .. " - " .. tostring(err)
-    end
-
-    local bytes_written, write_err = file:write(body)
-    file:close()
-
-    if not bytes_written then
-        return nil, "Failed to write to file: " .. filename .. " - " .. tostring(write_err)
-    end
-
-    print(string.format("Successfully downloaded %d bytes to '%s'.", #body, filename))
+    print(string.format("Successfully downloaded file to '%s'.", filename))
     return true
 end
 
