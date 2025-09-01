@@ -1,11 +1,11 @@
 # hoedown4eink
 shell script to build libhoedown and lua-resty-hoedown for eink devices (KOReader)
 
-This script is aiming at providing hoedown native support for `asstiant.koreader`.
+This script is aiming at providing hoedown native support for [asstiant.koplugin](https://github.com/omer-faruq/assistant.koplugin).
 
 The release files are crosscompiled using KOReader's [koxtoolchain](https://github.com/koreader/koxtoolchain).
 
-Below are tested device / platform for different tagged version.
+Below are tested device / platform.
 
 Download from the [release](https://github.com/boypt/hoedown4eink/releases) page.
 
@@ -16,15 +16,17 @@ Download from the [release](https://github.com/boypt/hoedown4eink/releases) page
 | Remarkable 1      | lua-hoedown_kobo.tgz   |
 | Linux x86_64      | lua-hoedown_x86_64.tgz |
 
-## Install
+## Manual Install
+
+download the lua-hoedown_XXXX.tgz to KOReader's directory, and extract it to the koreader/plugins/
+
+## Script Install
 ```sh
-# download the lua-hoedown_XXXX.tgz and `hoeins` to KOReader's directory
+# download the `gethoedown.lua` to KOReader's directory
 # open Termintal (Menu->Tools->More Tools>Terminal emulator->Open terminal session)
 
 # enter below commands
-sh hoeins
-
-# once finished, the files `hoeins` and lua-hoedown_XXXX.tgz are removed.
+./luajit gethoedown.lua
 ```
 
 Then restart KOReader.
