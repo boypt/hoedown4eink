@@ -1,5 +1,10 @@
+-- Configuration
+local GITHUB_PROXY = ""
+-- GITHUB_PROXY = "https://gh.llkk.cc/" -- uncomment this line if direct access to github unavailable
+local GITHUB_REPO_OWNER = "boypt"
+local GITHUB_REPO_NAME = "hoedown4eink"
 
-
+-- used in KOReader directory.
 package.path = "common/?.lua;frontend/?.lua;plugins/exporter.koplugin/?.lua;" .. package.path
 package.cpath = "common/?.so;common/?.dll;/usr/lib/lua/?.so;" .. package.cpath
 require("ffi/loadlib")
@@ -10,12 +15,6 @@ local http = require("socket.http") -- Changed from 'https' to 'socket.http'
 local ltn12 = require("ltn12")
 local json = require("rapidjson") -- Using rapidjson as per original request
 local IO = require("io") -- For file operations
-local logger = require("logger")
-
--- Configuration (HARDCODED - PLEASE CHANGE THESE!)
--- Replace with the actual GitHub repository owner and name
-local GITHUB_REPO_OWNER = "boypt"   -- Example: "luarocks"
-local GITHUB_REPO_NAME = "hoedown4eink"      -- Example: "luarocks-luarocks"
 
 -- Function to make an HTTP(S) GET request using socket.http and ltn12
 -- Returns body (as string), status_code, or nil, error_message
@@ -110,6 +109,11 @@ local latest_release_api_url = string.format(
     GITHUB_REPO_NAME
 )
 
+if GITHUB_PROXY then
+    print("Using proxy: " .. GITHUB_PROXY)
+    latest_release_api_url = GITHUB_PROXY .. latest_release_api_url
+end
+
 print("\nFetching latest release information from:")
 print(latest_release_api_url)
 
@@ -121,7 +125,7 @@ if not release_body then
 end
 
 if release_status ~= 200 then
-    print(string.format("Error: GitHub API responded with status %d for %s", release_status, latest_release_api_url))
+    print(string.format("Error: GitHub API responded with status %s for %s", release_status, latest_release_api_url))
     print("Response body (if any):")
     -- Print only if body is not too large for an error message or if it looks like an error JSON
     if #release_body < 500 then
@@ -159,6 +163,12 @@ end
 
 if found_asset then
     print(string.format("\nFound matching asset: %s (ID: %d)", found_asset.name, found_asset.id))
+
+    if GITHUB_PROXY then
+        print("Using proxy: " .. GITHUB_PROXY)
+        found_asset.browser_download_url = GITHUB_PROXY .. found_asset.browser_download_url
+    end
+
     print("Download URL: " .. found_asset.browser_download_url)
 
     local success, err = download_file(found_asset.browser_download_url, found_asset.name)
