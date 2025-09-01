@@ -117,8 +117,9 @@ end
 local args = {...} -- Get command line arguments
 
 if #args < 1 then
-    print("Usage: luajit download_github_asset_with_socket_http.lua <asset_name_to_match>")
-    print(string.format("  Example: luajit download_github_asset_with_socket_http.lua '%s'", GITHUB_REPO_NAME .. "-windows-x64.zip"))
+    print("Usage: luajit gethoedown.lua <device_tag>")
+    print("  Example: luajit gethoedown.lua kobo")
+    print("  See project README for a list of available device tags (e.g., kobo, kindlepw2, x86_64).")
     os.exit(1)
 end
 
