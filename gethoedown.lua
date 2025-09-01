@@ -69,8 +69,7 @@ local function download_file(url, filename)
             sink = ltn12.sink.file(file_handle)
         })
     end)
-
-    file_handle:close()
+    -- file_handle is closed by sink.file already
 
     if not ok then
         os.remove(filename) -- Cleanup partial file on request error
