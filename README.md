@@ -21,7 +21,7 @@ This method uses a Lua script to download and install the correct files for your
     ./luajit gethoedown.lua kobo
 
     # Example for a Kindle device
-    ./luajit gethoedown.lua pw2
+    ./luajit gethoedown.lua kindlepw2
     ```
 4.  Restart KOReader.
 
@@ -61,14 +61,14 @@ If you want to compile the binaries yourself, you'll need to set up the KOReader
 
 ### Native Build
 
-For a native build (e.g., on Linux x86_64), simply run the build script:
+For a native build (e.g., on `Linux x86_64`), simply run the build script:
 ```sh
 ./build_hoedown.sh
 ```
 
 ### Cross-Compilation
 
-1.  **Generate the toolchain** for your target device using `koxtoolchain`.
+1.  **Generate the toolchain** for your target device using [koxtoolchain](https://github.com/koreader/koxtoolchain).
     ```sh
     # From your koxtoolchain directory
     ./gen-tc.sh kobo
