@@ -93,3 +93,17 @@ For a native build (e.g., on `Linux x86_64`), simply run the build script:
     ./build_hoedown.sh arm-kindlepw2-linux-gnueabi
     ```
 
+
+### Build for Android
+
+```sh
+docker pull liasoft/antispy-build-android:ndk-r23c
+docker run -it --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  liasoft/antispy-build-android:ndk-r23c \
+  /bin/bash
+
+./build-android.sh armeabi-v7a
+./build-android.sh arm64-v8a
+```
