@@ -124,17 +124,21 @@ ensure_hoedown_src() {
     fi
 }
 
-# koxtoolchain 仓库 (用于 refs/x-compile.sh)
-ensure_kox_repo() {
-    local kox_dir="/tmp/koxtoolchain"
-    if [[ -d "$kox_dir/.git" ]]; then
-        echo "==> koxtoolchain repo already at $kox_dir, fetching..."
-        git -C "$kox_dir" fetch --depth 1 origin 2>/dev/null || true
-        git -C "$kox_dir" reset --hard origin/master 2>/dev/null || git -C "$kox_dir" reset --hard origin/main 2>/dev/null || true
-    elif [[ ! -d "$kox_dir" ]]; then
-        echo "==> Cloning koxtoolchain (depth 1) to $kox_dir..."
-        git clone --depth 1 https://github.com/koreader/koxtoolchain.git "$kox_dir"
+# 解析工具链 bin 路径（优先项目内，其次 HOME）
+toolchain_bin() {
+    local tc="$1" prefix="$2"
+    for cand in "$SCRIPTDIR/x-tools/$tc/bin" "$HOME/x-tools/$tc/bin" "/tmp/x-tools/$tc/bin"; do
+        if [[ -x "$cand/${prefix}-gcc" ]]; then
+            echo "$cand"
+            return 0
+        fi
+    done
+    # 也检查 PATH
+    if command -v "${prefix}-gcc" >/dev/null 2>&1; then
+        dirname "$(command -v "${prefix}-gcc")"
+        return 0
     fi
+    return 1
 }
 
 # 安装/复用 koxtoolchain 工具链
@@ -142,14 +146,18 @@ ensure_kox_repo() {
 ensure_toolchain() {
     local tc="$1"       # kobo / kindlepw2
     local prefix
+    local tc_dir  # 实际解压后的目录名（2026.08 起为完整三元组，而非短名）
     if [[ "$tc" == "kobo" ]]; then
         prefix="arm-kobo-linux-gnueabihf"
+        tc_dir="arm-kobo-linux-gnueabihf"
     else
         prefix="arm-kindlepw2-linux-gnueabi"
+        tc_dir="arm-kindlepw2-linux-gnueabi"
     fi
 
     # 判断是否已安装
     # 优先检查项目内 x-tools，其次 ~/x-tools、/tmp/x-tools（兼容旧安装）
+    # 注意：2026.08 解压后目录为 $prefix 而非 $tc，故需同时检查两种
     local proj_x_tools="$SCRIPTDIR/x-tools"
     local home_x_tools="$HOME/x-tools"
     local tmp_x_tools="/tmp/x-tools"
@@ -157,7 +165,9 @@ ensure_toolchain() {
     if [[ ! -w "$HOME" ]] 2>/dev/null || [[ ! -d "$HOME" ]]; then
         home_x_tools="/tmp/x-tools"
     fi
-    for cand in "$proj_x_tools/$tc/bin/${prefix}-gcc" "$home_x_tools/$tc/bin/${prefix}-gcc" "$tmp_x_tools/$tc/bin/${prefix}-gcc"; do
+    for cand in "$proj_x_tools/$tc_dir/bin/${prefix}-gcc" "$proj_x_tools/$tc/bin/${prefix}-gcc" \
+                "$home_x_tools/$tc_dir/bin/${prefix}-gcc" "$home_x_tools/$tc/bin/${prefix}-gcc" \
+                "$tmp_x_tools/$tc_dir/bin/${prefix}-gcc" "$tmp_x_tools/$tc/bin/${prefix}-gcc"; do
         if [[ -x "$cand" ]]; then
             echo "==> Toolchain $tc already installed at $(dirname "$(dirname "$cand")"), skipping download."
             return 0
@@ -195,52 +205,48 @@ ensure_toolchain() {
     fi
 
     echo "==> Extracting $tc.tar.zst to $install_root (requires zstd)..."
-    # 内含顶级目录 x-tools/，需解压到其父目录（$install_root 的父级是 $SCRIPTDIR 或 $HOME）
-    # 兼容两种 tar 调用
+    # 工具链包顶层为 x-tools/$tc_dir/...（如 arm-kobo-linux-gnueabihf），固定解压到其父目录
     local parent_dir="$install_root"
-    # 若 install_root 本身以 x-tools 结尾，则取其父目录
     if [[ "$install_root" == */x-tools ]]; then
         parent_dir="$(dirname "$install_root")"
     fi
-    # 工具链包顶层为 x-tools/<tc>/...，已在 $install_root 下时会自动创建 x-tools/<tc>
-    # 为避免双重 x-tools/x-tools，需根据包内容判断：包内已含 x-tools 前缀，直接解到 parent
+    # 清理旧的解压残留（避免 File exists 覆盖失败，zstd 包内多为只读文件）
+    rm -rf "$parent_dir/x-tools/$tc_dir" 2>/dev/null || sudo rm -rf "$parent_dir/x-tools/$tc_dir" 2>/dev/null || true
+    rm -rf "$parent_dir/x-tools/$tc" 2>/dev/null || sudo rm -rf "$parent_dir/x-tools/$tc" 2>/dev/null || true
+    mkdir -p "$parent_dir/x-tools"
+    # 项目内安装时 parent_dir == $SCRIPTDIR，HOME 安装时为 $HOME
+    # 直接解到 parent_dir 即可得到 $parent_dir/x-tools/$tc_dir
     if tar --help 2>&1 | grep -q "zstd"; then
-        # 使用 --zstd 若支持，否则回退
-        if ! tar --zstd -tf "$archive" 2>&1 | head -1 | grep -q "^x-tools/"; then
-            # 包内无 x-tools 前缀（少见），直接解到 install_root/x-tools
-            mkdir -p "$install_root/x-tools"
-            tar --zstd -xf "$archive" -C "$install_root/x-tools"
-        else
-            tar --zstd -xf "$archive" -C "$parent_dir"
-        fi
+        tar --zstd -xf "$archive" -C "$parent_dir"
     else
-        if ! zstd -d -c "$archive" | tar -tf - 2>&1 | head -1 | grep -q "^x-tools/"; then
-            mkdir -p "$install_root/x-tools"
-            zstd -d -c "$archive" | tar -xf - -C "$install_root/x-tools"
-        else
-            zstd -d -c "$archive" | tar -xf - -C "$parent_dir"
-        fi
+        zstd -d -c "$archive" | tar -xf - -C "$parent_dir"
     fi
 
-    # 同步到 HOME 以兼容 x-compile.sh 默认路径（它固定查找 ~/x-tools）
-    local installed_gcc="$parent_dir/x-tools/$tc/bin/${prefix}-gcc"
-    # 若安装到了项目内，也在 HOME 下创建符号链接/复制以兼容旧脚本
-    if [[ "$parent_dir" == "$SCRIPTDIR" && "$HOME" != "$SCRIPTDIR" && -x "$installed_gcc" && ! -x "$HOME/x-tools/$tc/bin/${prefix}-gcc" ]]; then
-        echo "==> Linking $installed_gcc -> $HOME/x-tools (for x-compile.sh compatibility)"
+    # 同步到 HOME 以兼容旧脚本 / x-compile.sh 预期（虽然新逻辑已不依赖 x-compile.sh）
+    local installed_gcc="$parent_dir/x-tools/$tc_dir/bin/${prefix}-gcc"
+    # 若安装到了项目内，也在 HOME 下创建符号链接/复制以兼容旧脚本（短名 kobo 也兼容）
+    if [[ "$parent_dir" == "$SCRIPTDIR" && "$HOME" != "$SCRIPTDIR" && -x "$installed_gcc" ]]; then
         mkdir -p "$HOME/x-tools"
-        ln -sfn "$parent_dir/x-tools/$tc" "$HOME/x-tools/$tc" 2>/dev/null || cp -a "$parent_dir/x-tools/$tc" "$HOME/x-tools/" 2>/dev/null || true
+        if [[ ! -x "$HOME/x-tools/$tc_dir/bin/${prefix}-gcc" ]]; then
+            ln -sfn "$parent_dir/x-tools/$tc_dir" "$HOME/x-tools/$tc_dir" 2>/dev/null || cp -a "$parent_dir/x-tools/$tc_dir" "$HOME/x-tools/" 2>/dev/null || true
+        fi
+        if [[ ! -x "$HOME/x-tools/$tc/bin/${prefix}-gcc" ]]; then
+            ln -sfn "$parent_dir/x-tools/$tc_dir" "$HOME/x-tools/$tc" 2>/dev/null || true
+        fi
     fi
 
     echo "==> Toolchain $tc installed"
-    # 验证（依次检查项目内、HOME、/tmp）
-    for cand in "$SCRIPTDIR/x-tools/$tc/bin/${prefix}-gcc" "$HOME/x-tools/$tc/bin/${prefix}-gcc" "/tmp/x-tools/$tc/bin/${prefix}-gcc"; do
+    # 验证（依次检查项目内、HOME、/tmp，兼容短名与完整三元组）
+    for cand in "$SCRIPTDIR/x-tools/$tc_dir/bin/${prefix}-gcc" "$SCRIPTDIR/x-tools/$tc/bin/${prefix}-gcc" \
+                "$HOME/x-tools/$tc_dir/bin/${prefix}-gcc" "$HOME/x-tools/$tc/bin/${prefix}-gcc" \
+                "/tmp/x-tools/$tc_dir/bin/${prefix}-gcc" "/tmp/x-tools/$tc/bin/${prefix}-gcc"; do
         if [[ -x "$cand" ]]; then
             echo "    Verified: $cand"
             return 0
         fi
     done
     echo "Warning: expected ${prefix}-gcc not found after extraction" >&2
-    ls -R "$parent_dir/x-tools/$tc" 2>&1 | head -n 30 >&2 || true
+    ls -R "$parent_dir/x-tools/$tc_dir" 2>&1 | head -n 30 >&2 || ls -R "$parent_dir/x-tools/$tc" 2>&1 | head -n 30 >&2 || true
 }
 
 # 暂存 OUTPUT/lib 到 DIST
@@ -301,16 +307,16 @@ if should_build "kobo"; then
     echo "=================================================================="
     echo "==> Building kobo -> armv7_hardfp (arm-kobo-linux-gnueabihf)..."
     echo "=================================================================="
-    ensure_kox_repo
     ensure_toolchain "kobo"
-    # 在子 shell 中 source 环境并构建，避免污染后续构建
-    (
-        set -e
-        set -o pipefail
-        # shellcheck disable=SC1091
-        source /tmp/koxtoolchain/refs/x-compile.sh kobo env bare
-        "$SCRIPTDIR/build_hoedown.sh" arm-kobo-linux-gnueabihf
-    )
+    # 优先使用预编译包：只需将工具链 bin 加入 PATH，无需克隆 koxtoolchain 仓库或 source x-compile.sh
+    # x-compile.sh 的 CFLAGS/LDFLAGS 对 hoedown 无意义（hoedown/Makefile 自带 -g -O3）
+    if ! toolchain_bin "kobo" "arm-kobo-linux-gnueabihf" >/dev/null; then
+        echo "Error: kobo toolchain not found after ensure_toolchain" >&2
+        exit 1
+    fi
+    KOBO_BIN="$(toolchain_bin "kobo" "arm-kobo-linux-gnueabihf")"
+    echo "  using $KOBO_BIN/arm-kobo-linux-gnueabihf-gcc"
+    PATH="$KOBO_BIN:$PATH" "$SCRIPTDIR/build_hoedown.sh" arm-kobo-linux-gnueabihf
     stage_output "armv7_hardfp"
 fi
 
@@ -319,15 +325,14 @@ if should_build "kindlepw2"; then
     echo "=================================================================="
     echo "==> Building kindlepw2 -> armv7_softfp (arm-kindlepw2-linux-gnueabi)..."
     echo "=================================================================="
-    ensure_kox_repo
     ensure_toolchain "kindlepw2"
-    (
-        set -e
-        set -o pipefail
-        # shellcheck disable=SC1091
-        source /tmp/koxtoolchain/refs/x-compile.sh kindlepw2 env bare
-        "$SCRIPTDIR/build_hoedown.sh" arm-kindlepw2-linux-gnueabi
-    )
+    if ! toolchain_bin "kindlepw2" "arm-kindlepw2-linux-gnueabi" >/dev/null; then
+        echo "Error: kindlepw2 toolchain not found after ensure_toolchain" >&2
+        exit 1
+    fi
+    PW2_BIN="$(toolchain_bin "kindlepw2" "arm-kindlepw2-linux-gnueabi")"
+    echo "  using $PW2_BIN/arm-kindlepw2-linux-gnueabi-gcc"
+    PATH="$PW2_BIN:$PATH" "$SCRIPTDIR/build_hoedown.sh" arm-kindlepw2-linux-gnueabi
     stage_output "armv7_softfp"
 fi
 
