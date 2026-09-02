@@ -33,7 +33,7 @@ build_hoedown() {
 
     echo "Building hoedown (make clean for arch ${TOOLCHAIN_PREFIX:-native})..."
     make clean
-    # size-优先参数（与 build-android.sh 一致）；切勿加 -fvisibility=hidden
+    # size-优先参数（与 build_android.sh 一致）；切勿加 -fvisibility=hidden
     # （hoedown 无 visibility 标注，hidden+--gc-sections 会裁成 2.5K 空壳，见 AGENTS.md）
     make CC="${TOOLCHAIN_PREFIX}gcc" \
         CFLAGS="-Os -pipe -fomit-frame-pointer -fPIC -std=gnu11 -ffunction-sections -fdata-sections" \

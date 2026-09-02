@@ -98,8 +98,8 @@ This method uses a Lua script to download and install the correct files for your
 | Kindle PW3/Oasis 2        | `kindlepw2`   | `lua-hoedown_kindlepw2.tgz` | `armv7_softfp`     | ~42K |
 | Kobo H2O/Libra 2/Clara HD | `kobo`        | `lua-hoedown_kobo.tgz`    | `armv7_hardfp`     | ~42K |
 | Remarkable 1              | `kobo`        | `lua-hoedown_kobo.tgz`    | `armv7_hardfp`     | ~42K |
-| Android ARM 32-bit        | `armeabi-v7a` | `build-android.sh armeabi-v7a` (Docker) | `android_armv7a` | ~48K |
-| Android ARM 64-bit        | `arm64-v8a`   | `build-android.sh arm64-v8a` (Docker)   | `android_arm64`  | ~57K |
+| Android ARM 32-bit        | `armeabi-v7a` | `build_android.sh armeabi-v7a` (Docker) | `android_armv7a` | ~48K |
+| Android ARM 64-bit        | `arm64-v8a`   | `build_android.sh arm64-v8a` (Docker)   | `android_arm64`  | ~57K |
 | Linux x86_64 (Desktop/Emulator) | `x86_64` | `lua-hoedown_x86_64.tgz` | `x86_64`           | ~75K |
 
 > Historical tag mapping: `build_hoedown.sh` tags `lua-hoedown_<tag>.tgz` with `<tag> = $(echo $TOOLCHAIN_PREFIX | cut -d- -f2)` → `kobo`/`kindlepw2`/`x86_64`. Consumer plugin renames to `armv7_hardfp`/`armv7_softfp`/`x86_64` (+ `android_*`). All 5 `libhoedown.so.3` are required under `assistant.koplugin/lib/`.
@@ -120,7 +120,7 @@ To confirm that the Hoedown library is being used correctly:
 
 ## Building from Source
 
-If you prefer manual builds, the sections below call `build_hoedown.sh` / `build-android.sh` directly. For reproducible pinned versions use `./build_all.sh` above.
+If you prefer manual builds, the sections below call `build_hoedown.sh` / `build_android.sh` directly. For reproducible pinned versions use `./build_all.sh` above.
 
 **Dependencies:** `make`, `strip`, `tar`, `git`, `zstd` (needed to extract `koxtoolchain/*.tar.zst`), plus `curl`/`wget` for toolchain download and `docker` for Android.
 
@@ -172,7 +172,7 @@ For a native build (e.g., on `Linux x86_64`), simply run the build script:
 
 ### Build for Android (Manual)
 
-Previously required `docker run -w /workspace -w /workspace/hoedown` dance. The fixed `build-android.sh` works from the repo root; just mount `$(pwd)`:
+Previously required `docker run -w /workspace -w /workspace/hoedown` dance. The fixed `build_android.sh` works from the repo root; just mount `$(pwd)`:
 
 ```sh
 docker pull liasoft/antispy-build-android:ndk-r23c
@@ -184,17 +184,17 @@ docker pull liasoft/antispy-build-android:ndk-r23c
 # or directly via Docker (no interactive shell needed)
 docker run --rm -v $(pwd):/workspace -w /workspace \
   liasoft/antispy-build-android:ndk-r23c \
-  /workspace/build-android.sh armeabi-v7a
+  /workspace/build_android.sh armeabi-v7a
 
 docker run --rm -v $(pwd):/workspace -w /workspace \
   liasoft/antispy-build-android:ndk-r23c \
-  /workspace/build-android.sh arm64-v8a
+  /workspace/build_android.sh arm64-v8a
 
 # legacy interactive form still works:
 docker run -it --rm -v $(pwd):/workspace -w /workspace \
   liasoft/antispy-build-android:ndk-r23c /bin/bash
-./build-android.sh armeabi-v7a
-./build-android.sh arm64-v8a
+./build_android.sh armeabi-v7a
+./build_android.sh arm64-v8a
 ```
 
 Notes:

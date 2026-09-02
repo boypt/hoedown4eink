@@ -338,19 +338,19 @@ fi
 #   - NDK r23c
 #   - API 18 for armeabi-v7a (armv7a-linux-androideabi21-clang + -Wl,--fix-cortex-a8)
 #   - API 21 for arm64-v8a  (aarch64-linux-android21-clang)
-# CFLAGS 已在 build-android.sh 中固定且移除了 -fvisibility=hidden
+# CFLAGS 已在 build_android.sh 中固定且移除了 -fvisibility=hidden
 
 if should_build "android-armv7a"; then
     echo "=================================================================="
     echo "==> Building android-armv7a (armeabi-v7a, API 18) via docker..."
     echo "=================================================================="
     ensure_hoedown_src
-    # --fix-cortex-a8 仅用于 armeabi-v7a，已在 build-android.sh 中处理
+    # --fix-cortex-a8 仅用于 armeabi-v7a，已在 build_android.sh 中处理
     docker run --rm \
         -v "$SCRIPTDIR:/workspace" \
         -w /workspace \
         "$DOCKER_IMAGE" \
-        /workspace/build-android.sh armeabi-v7a
+        /workspace/build_android.sh armeabi-v7a
     stage_android "armeabi-v7a" "android_armv7a"
 fi
 
@@ -363,7 +363,7 @@ if should_build "android-arm64"; then
         -v "$SCRIPTDIR:/workspace" \
         -w /workspace \
         "$DOCKER_IMAGE" \
-        /workspace/build-android.sh arm64-v8a
+        /workspace/build_android.sh arm64-v8a
     stage_android "arm64-v8a" "android_arm64"
 fi
 
