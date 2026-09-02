@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Overview
-Cross-compilation wrapper that builds `libhoedown` (C Markdown parser) + `lua-resty-hoedown` (Lua binding) for `../assistant.koplugin`. Release artifacts were `lua-hoedown_<tag>.tgz` (now directly committed as `lib/*/libhoedown.so.3` in the plugin). Not a Node/Python package — no package manager, no lint/typecheck.
+Cross-compilation wrapper that builds `libhoedown` (C Markdown parser) + `lua-resty-hoedown` (Lua binding) for `../assistant.koplugin`. Release artifact is `dist/hoedown-libs.tgz` (single archive containing `lib/` with 5 `libhoedown.so.3` + `resty/`), extracted directly into the plugin as `lib/*/libhoedown.so.3`. Legacy per-arch `lua-hoedown_<tag>.tgz` is deprecated. Not a Node/Python package — no package manager, no lint/typecheck.
 
 ## Required Artifacts (consumed by `../assistant.koplugin`)
 
@@ -23,16 +23,17 @@ Cross-compilation wrapper that builds `libhoedown` (C Markdown parser) + `lua-re
 - Generic ARM → `isHardFP()` checks `/lib/ld-linux-armhf.so.3` (same heuristic as KOReader `kindle/device.lua`) → `armv7_hardfp` vs `armv7_softfp`. One soft-float build works on any EABI5 environment; hard-float build also loads on aarch64 hosts.
 - Fallback: `pcall(ffi.loadlib,"hoedown",3)` (system) before plugin path; then `package.preload["resty.hoedown.library"] = LibHoedown` + `package.path += "lib/?.lua"` + `require("resty.hoedown")` with extensions `space_headers,tables,fenced_code,footnotes,autolink,strikethrough,underline,highlight,quote,superscript,math,math_explicit`. Missing file falls back to pure-Lua `apps/filemanager/lib/md`.
 
-**Packaging note**: this repo produces `libhoedown.so.3` (C) + `lib/resty/*` (Lua). The consumer commits them directly under `assistant.koplugin/lib/` (see `assistant.koplugin/lib/` — 5 `libhoedown.so.3` + 10 Lua files). Legacy `lua-hoedown_*.tgz` with `lib/` prefix extracted by `hoeins`/`gethoedown.lua` into `plugins/assistant.koplugin/` is now historical; keep `/*.tgz` gitignored.
+**Packaging note**: this repo produces `libhoedown.so.3` (C) + `lib/resty/*` (Lua). The consumer commits them directly under `assistant.koplugin/lib/` (see `assistant.koplugin/lib/` — 5 `libhoedown.so.3` + 10 Lua files). `build_all.sh` produces `dist/hoedown-libs.tgz` (`tar -czf dist/hoedown-libs.tgz -C dist lib`) and `dist/hoedown-libs.zip` with top-level `lib/` ready for `tar xzf -C ../assistant.koplugin`. Legacy per-arch `lua-hoedown_*.tgz` with `lib/` prefix extracted by `hoeins`/`gethoedown.lua` into `plugins/assistant.koplugin/` is now historical; keep `/*.tgz` gitignored.
 
 ## Structure
-- `build_hoedown.sh` — clones `hoedown/hoedown` + `bungle/lua-resty-hoedown`, compiles `libhoedown.so.3` with `make CC=${TOOLCHAIN_PREFIX}gcc`, strips, installs to `OUTPUT/lib/`, packages `OUTPUT/` → `lua-hoedown_<tag>.tgz`
-- `build-android.sh` — Android cross-compile (runs inside Docker, not via koxtoolchain); `hoedown/build-android.sh` is vendored copy with identical logic
+- `build_hoedown.sh` — clones `hoedown/hoedown` + `bungle/lua-resty-hoedown`, compiles `libhoedown.so.3` with `make CC=${TOOLCHAIN_PREFIX}gcc`, strips, installs to `OUTPUT/lib/`, packages `OUTPUT/` → `lua-hoedown_<tag>.tgz` (legacy)
+- `build-android.sh` — Android cross-compile (runs inside Docker, not via koxtoolchain); supports NDK at `ANDROID_NDK` / `ANDROID_NDK_ROOT` and repo-root invocation
 - `hoedown/` — git-cloned C source (currently untracked, **do not commit**); contains `Makefile`, `src/`, `test/`
-- `BUILD/` / `OUTPUT/` / `dist/` — ephemeral build dirs, gitignored; `OUTPUT/lib/` gets Lua files via `tar c lib | tar x` from lua-resty-hoedown; `dist/` is the reproducible output staged by `build_all.sh` (5 `libhoedown.so.3` + `resty/`)
-- `build_all.sh` — reproducible one-click wrapper: pins koxtoolchain 2026.08 (`kobo`/`kindlepw2` `.tar.zst` via `zstd`), Docker `liasoft/antispy-build-android:ndk-r23c` (NDK r23c API 18/21), `hoedown`/`lua-resty-hoedown` depth 1; stages to `dist/` (`--arch` filter supported)
-- `gethoedown.lua` — KOReader-side installer (LuaJIT, not standalone Lua) — downloads `lua-hoedown_<tag>.tgz` via GitHub API and extracts to `plugins/assistant.koplugin/`
-- `hoeins` — shell helper `tar xvzf lua-hoedown_*.tgz -C plugins/assistant.koplugin/`
+- `BUILD/` / `OUTPUT/` — ephemeral build dirs, gitignored; `OUTPUT/lib/` gets Lua files via `tar c lib | tar x` from lua-resty-hoedown
+- `dist/` — reproducible output staged by `build_all.sh`: `dist/{armv7_hardfp,armv7_softfp,x86_64,android_armv7a,android_arm64}/libhoedown.so.3` + `dist/resty/` + assembled `dist/lib/` (+ `dist/hoedown-libs.tgz|zip` with top-level `lib/`)
+- `build_all.sh` — reproducible one-click wrapper: pins koxtoolchain 2026.08 (`kobo`/`kindlepw2` `.tar.zst` via `zstd`), Docker `liasoft/antispy-build-android:ndk-r23c` (NDK r23c API 18/21), `hoedown`/`lua-resty-hoedown` depth 1; supports `--arch` filter, stages to `dist/` and assembles `dist/lib/` + `hoedown-libs.tgz|zip`
+- `gethoedown.lua` — KOReader-side installer (LuaJIT, not standalone Lua) — downloads `lua-hoedown_<tag>.tgz` via GitHub API and extracts to `plugins/assistant.koplugin/` (legacy per-arch)
+- `hoeins` — shell helper `tar xvzf lua-hoedown_*.tgz -C plugins/assistant.koplugin/` (legacy)
 - `*.tgz` at repo root is `/*.tgz` gitignored (legacy); `dist/` / `hoedown/` / `lua-resty-hoedown/` are also gitignored
 
 ## Build & Verify

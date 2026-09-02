@@ -383,6 +383,55 @@ else
     echo "==> resty already staged at $DIST/resty/"
 fi
 
+# ========== 打包（适配 assistant.koplugin 直接跟踪结构） ==========
+# 用户要求：build_all.sh 直接输出包含以下结构的压缩包（不再是旧的 lua-hoedown_kobo.tgz 分包）：
+#   lib/android_arm64/libhoedown.so.3
+#   lib/android_armv7a/libhoedown.so.3
+#   lib/armv7_hardfp/libhoedown.so.3
+#   lib/armv7_softfp/libhoedown.so.3
+#   lib/x86_64/libhoedown.so.3
+#   lib/resty/hoedown.lua + lib/resty/hoedown/*.lua
+# 该压缩包可直接解压到 assistant.koplugin 根目录（tar xzf -C ../assistant.koplugin）或 dist/lib
+PKG_DIR="$DIST/lib"
+PKG_TGZ="$DIST/hoedown-libs.tgz"
+PKG_ZIP="$DIST/hoedown-libs.zip"
+echo ""
+echo "=================================================================="
+echo "  Packaging lib/ archive"
+echo "=================================================================="
+# 清理旧的打包目录，重新组装
+rm -rf "$PKG_DIR"
+mkdir -p "$PKG_DIR"
+for d in armv7_hardfp armv7_softfp x86_64 android_armv7a android_arm64; do
+    if [[ -f "$DIST/$d/libhoedown.so.3" ]]; then
+        mkdir -p "$PKG_DIR/$d"
+        cp -a "$DIST/$d/libhoedown.so.3" "$PKG_DIR/$d/"
+        echo "  staged lib/$d/libhoedown.so.3"
+    else
+        echo "  skip lib/$d/libhoedown.so.3 (not built)" >&2
+    fi
+done
+if [[ -d "$DIST/resty" ]]; then
+    mkdir -p "$PKG_DIR/resty"
+    cp -a "$DIST/resty/." "$PKG_DIR/resty/"
+    echo "  staged lib/resty/"
+fi
+# 生成压缩包（两者都提供，优先 tgz）
+if [[ -d "$PKG_DIR" ]] && ls "$PKG_DIR"/*/libhoedown.so.3 1>/dev/null 2>&1; then
+    echo "  creating $PKG_TGZ ..."
+    tar -czf "$PKG_TGZ" -C "$DIST" lib
+    ls -lh "$PKG_TGZ"
+    if command -v zip >/dev/null 2>&1; then
+        echo "  creating $PKG_ZIP ..."
+        (cd "$DIST" && zip -r -q "$(basename "$PKG_ZIP")" lib)
+        ls -lh "$PKG_ZIP"
+    fi
+    echo "  package contents:"
+    tar tzf "$PKG_TGZ" 2>&1 | head -n 30 || true
+else
+    echo "Warning: no lib to package, skipping archive" >&2
+fi
+
 # ========== 汇总 ==========
 echo ""
 echo "=================================================================="

@@ -28,7 +28,7 @@ One-click build for all 5 `libhoedown.so.3` variants + `resty` Lua binding via `
 
 **Prerequisites:** `tar`, `git`, `curl` or `wget`, `zstd` (for `*.tar.zst`), `docker` (only for Android builds), plus `make`/`strip` for native/koxtoolchain builds.
 
-**Output `dist/` layout:**
+**Output `dist/` layout (directly matches `assistant.koplugin/lib/` tracking):**
 
 ```
 dist/
@@ -39,11 +39,24 @@ dist/
   android_arm64/libhoedown.so.3  # API 21, ~57K stripped
   resty/hoedown.lua
   resty/hoedown/*.lua            # 9 files, pure Lua FFI binding
+  lib/                           # assembled package root (for direct copy/tar)
+    android_arm64/libhoedown.so.3
+    android_armv7a/libhoedown.so.3
+    armv7_hardfp/libhoedown.so.3
+    armv7_softfp/libhoedown.so.3
+    x86_64/libhoedown.so.3
+    resty/...
+  hoedown-libs.tgz               # compressed package containing lib/ (see above)
+  hoedown-libs.zip               # same content as zip (if zip available)
 ```
 
-**Copy to consumer plugin (`../assistant.koplugin/lib/`):**
+`hoedown-libs.tgz` is the **single release artifact** (replaces legacy `lua-hoedown_kobo.tgz` per-arch tgz). Its top-level `lib/` can be extracted directly into the consumer:
 
 ```sh
+# from dist/
+tar tzf hoedown-libs.tgz | head -20   # shows lib/...
+tar xzf hoedown-libs.tgz -C ../assistant.koplugin/   # -> ../assistant.koplugin/lib/...
+# or manual copy
 for d in armv7_hardfp armv7_softfp x86_64 android_armv7a android_arm64; do
   mkdir -p "../assistant.koplugin/lib/$d"
   cp -a "dist/$d/libhoedown.so.3" "../assistant.koplugin/lib/$d/"
