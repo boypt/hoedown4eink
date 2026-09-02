@@ -107,19 +107,15 @@ download_file() {
     fi
 }
 
-# 确保 hoedown 源码存在 (幂等)
+# 确保 hoedown 源码存在 (幂等，与 build_hoedown.sh 共用 $SCRIPTDIR/hoedown)
 ensure_hoedown_src() {
     if [[ -d "$SCRIPTDIR/hoedown" && -f "$SCRIPTDIR/hoedown/Makefile" ]]; then
         echo "==> hoedown already exists at $SCRIPTDIR/hoedown, updating (fetch --depth 1)..."
         git -C "$SCRIPTDIR/hoedown" fetch --depth 1 origin 2>/dev/null || true
         # 尝试 reset 到 origin/master 或 origin/main，兼容两种分支名
         git -C "$SCRIPTDIR/hoedown" reset --hard origin/master 2>/dev/null || git -C "$SCRIPTDIR/hoedown" reset --hard origin/main 2>/dev/null || true
-    elif [[ -d "$SCRIPTDIR/BUILD/hoedown" && -f "$SCRIPTDIR/BUILD/hoedown/Makefile" ]]; then
-        echo "==> Found hoedown at $SCRIPTDIR/BUILD/hoedown, copying to $SCRIPTDIR/hoedown for docker..."
-        mkdir -p "$SCRIPTDIR/hoedown"
-        cp -a "$SCRIPTDIR/BUILD/hoedown/." "$SCRIPTDIR/hoedown/"
     elif [[ ! -d "$SCRIPTDIR/hoedown" ]]; then
-        echo "==> Cloning hoedown (depth 1)..."
+        echo "==> Cloning hoedown (depth 1) to $SCRIPTDIR/hoedown (reused by all archs)..."
         git clone --depth 1 "$HOEDOWN_URL" "$SCRIPTDIR/hoedown"
     fi
 }

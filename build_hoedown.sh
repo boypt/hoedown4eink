@@ -5,9 +5,11 @@ set -e
 set -o pipefail
 SCRIPTDIR=$(dirname "$(readlink -f "$0")")
 OUTPUTDIR="$SCRIPTDIR/OUTPUT"
-BUILDDIR="$SCRIPTDIR/BUILD"
-rm -rf "$OUTPUTDIR" "$BUILDDIR"
-mkdir -p "$OUTPUTDIR" "$BUILDDIR"
+# 源码树持久化在 $SCRIPTDIR/hoedown（gitignored），多架构循环共用：
+# 首次缺失才 clone，之后每次只 make clean + 重新 make，避免每个架构各 clone 一次
+HOEDOWN_SRC="$SCRIPTDIR/hoedown"
+rm -rf "$OUTPUTDIR"
+mkdir -p "$OUTPUTDIR"
 
 # Dependency checks: verify required commands exist
 for cmd in make strip tar git; do
@@ -23,20 +25,20 @@ build_hoedown() {
     local LIBOBJ="libhoedown.so.3"
     [[ -z $TOOLCHAIN_PREFIX ]] && TOOLCHAIN_PREFIX=""
 
-    cd "$BUILDDIR"
-    echo "Cloning hoedown repository..."
-    if [[ -d hoedown ]]; then
-        echo "Updating existing hoedown checkout..."
-        cd hoedown
-        git fetch --depth 1 origin && git reset --hard origin/master
-    else
-        git clone --depth 1 https://github.com/hoedown/hoedown.git
-        cd hoedown
+    if [[ ! -d "$HOEDOWN_SRC" ]]; then
+        echo "Cloning hoedown repository to $HOEDOWN_SRC (reused across arch builds)..."
+        git clone --depth 1 https://github.com/hoedown/hoedown.git "$HOEDOWN_SRC"
     fi
+    cd "$HOEDOWN_SRC"
 
-    echo "Building hoedown..."
+    echo "Building hoedown (make clean for arch ${TOOLCHAIN_PREFIX:-native})..."
     make clean
-    make CC="${TOOLCHAIN_PREFIX}gcc"
+    # size-优先参数（与 build-android.sh 一致）；切勿加 -fvisibility=hidden
+    # （hoedown 无 visibility 标注，hidden+--gc-sections 会裁成 2.5K 空壳，见 AGENTS.md）
+    make CC="${TOOLCHAIN_PREFIX}gcc" \
+        CFLAGS="-Os -pipe -fomit-frame-pointer -fPIC -std=gnu11 -ffunction-sections -fdata-sections" \
+        LDFLAGS="-shared -Wl,-soname,libhoedown.so.3 -Wl,--as-needed,--gc-sections -Wl,-s" \
+        libhoedown.so.3
 
     echo "Stripping $LIBOBJ..."
     ${TOOLCHAIN_PREFIX}strip $LIBOBJ
