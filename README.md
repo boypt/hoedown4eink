@@ -63,44 +63,6 @@ file ../assistant.koplugin/lib/*/libhoedown.so.3
 readelf -A ../assistant.koplugin/lib/armv7_*/libhoedown.so.3 | grep -E 'Tag_ABI|VFP'
 ```
 
-## Installation
-
-You can install the pre-compiled binaries by downloading them manually from the releases page.
-
-### Manual Install
-
-1.  Go to the Releases page.
-2.  Download the appropriate `.tgz` archive for your device from the table below.
-3.  Extract the contents of the archive into your KOReader's `plugins/assistant.koplugin/` directory.
-4.  Restart KOReader.
-
-## Downloads & Compatibility
-
-| Device / Platform         | Platform Tag  | Release Asset             | Plugin `lib/` subdir | Size (stripped) |
-|---------------------------|---------------|---------------------------|----------------------|-----------------|
-| Kindle PW3/Oasis 2        | `kindlepw2`   | `lua-hoedown_kindlepw2.tgz` | `armv7_softfp`     | ~42K |
-| Kobo H2O/Libra 2/Clara HD | `kobo`        | `lua-hoedown_kobo.tgz`    | `armv7_hardfp`     | ~42K |
-| Remarkable 1              | `kobo`        | `lua-hoedown_kobo.tgz`    | `armv7_hardfp`     | ~42K |
-| Android ARM 32-bit        | `armeabi-v7a` | `build_android.sh armeabi-v7a` (Docker) | `android_armv7a` | ~48K |
-| Android ARM 64-bit        | `arm64-v8a`   | `build_android.sh arm64-v8a` (Docker)   | `android_arm64`  | ~57K |
-| Linux x86_64 (Desktop/Emulator) | `x86_64` | `lua-hoedown_x86_64.tgz` | `x86_64`           | ~75K |
-
-> Historical tag mapping: `build_hoedown.sh` tags `lua-hoedown_<tag>.tgz` with `<tag> = $(echo $TOOLCHAIN_PREFIX | cut -d- -f2)` → `kobo`/`kindlepw2`/`x86_64`. Consumer plugin renames to `armv7_hardfp`/`armv7_softfp`/`x86_64` (+ `android_*`). All 5 `libhoedown.so.3` are required under `assistant.koplugin/lib/`.
-
-## Verify Installation
-
-To confirm that the Hoedown library is being used correctly:
-
-1.  Open the Terminal Emulator in KOReader.
-2.  Check the log for a confirmation message:
-    ```sh
-    grep markdown crash.log
-    ```
-3.  A successful installation will show a line similar to this:
-    ```
-    07/22/25-16:14:44 INFO  Using hoedown (C binding) for markdown parsing
-    ```
-
 ## Building from Source
 
 If you prefer manual builds, the sections below call `build_hoedown.sh` / `build_android.sh` directly. For reproducible pinned versions use `./build_all.sh` above.
