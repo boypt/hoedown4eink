@@ -65,24 +65,7 @@ readelf -A ../assistant.koplugin/lib/armv7_*/libhoedown.so.3 | grep -E 'Tag_ABI|
 
 ## Installation
 
-You can install the pre-compiled binaries using the automated script or by downloading them manually from the releases page.
-
-### Automated Install (Recommended)
-
-This method uses a Lua script to download and install the correct files for your device.
-
-1.  Download the `gethoedown.lua` script to the root of your KOReader directory.
-2.  In KOReader, open the Terminal Emulator:
-    `Menu -> Tools -> More Tools -> Terminal emulator -> Open terminal session`
-3.  Run the script with your device's platform tag. See the table below for the correct tag.
-    ```sh
-    # Example for a Kobo device
-    ./luajit gethoedown.lua kobo
-
-    # Example for a Kindle device
-    ./luajit gethoedown.lua kindlepw2
-    ```
-4.  Restart KOReader.
+You can install the pre-compiled binaries by downloading them manually from the releases page.
 
 ### Manual Install
 

@@ -22,7 +22,7 @@ Cross-compilation wrapper that builds `libhoedown` (C Markdown parser) for `../a
 - Generic ARM → `isHardFP()` checks `/lib/ld-linux-armhf.so.3` (same heuristic as KOReader `kindle/device.lua`) → `armv7_hardfp` vs `armv7_softfp`. One soft-float build works on any EABI5 environment; hard-float build also loads on aarch64 hosts.
 - Fallback: `pcall(ffi.loadlib,"hoedown",3)` (system) before plugin path; then `package.preload["resty.hoedown.library"] = LibHoedown` + `package.path += "lib/?.lua"` + `require("resty.hoedown")` with extensions `space_headers,tables,fenced_code,footnotes,autolink,strikethrough,underline,highlight,quote,superscript,math,math_explicit`. Missing file falls back to pure-Lua `apps/filemanager/lib/md`.
 
-**Packaging note**: this repo produces only `libhoedown.so.3` (C). The consumer commits them directly under `assistant.koplugin/lib/` (see `assistant.koplugin/lib/` — 5 `libhoedown.so.3`). `build_all.sh` produces `dist/hoedown-libs.tgz` (`tar -czf dist/hoedown-libs.tgz -C dist lib`) and `dist/hoedown-libs.zip` with top-level `lib/` ready for `tar xzf -C ../assistant.koplugin`. Legacy per-arch `lua-hoedown_*.tgz` with `lib/` prefix extracted by `gethoedown.lua` into `plugins/assistant.koplugin/` is now historical; keep `/*.tgz` gitignored.
+**Packaging note**: this repo produces only `libhoedown.so.3` (C). The consumer commits them directly under `assistant.koplugin/lib/` (see `assistant.koplugin/lib/` — 5 `libhoedown.so.3`). `build_all.sh` produces `dist/hoedown-libs.tgz` (`tar -czf dist/hoedown-libs.tgz -C dist lib`) and `dist/hoedown-libs.zip` with top-level `lib/` ready for `tar xzf -C ../assistant.koplugin`. Legacy per-arch `lua-hoedown_*.tgz` is now historical; keep `/*.tgz` gitignored.
 
 ## Structure
 - `build_hoedown.sh` — clones `hoedown/hoedown`, compiles `libhoedown.so.3` with `make CC=${TOOLCHAIN_PREFIX}gcc`, strips, installs to `OUTPUT/lib/`, packages `OUTPUT/` → `lua-hoedown_<tag>.tgz` (legacy)
@@ -31,7 +31,6 @@ Cross-compilation wrapper that builds `libhoedown` (C Markdown parser) for `../a
 - `BUILD/` / `OUTPUT/` — ephemeral build dirs, gitignored
 - `dist/` — reproducible output staged by `build_all.sh`: `dist/{armv7_hardfp,armv7_softfp,x86_64,android_armv7a,android_arm64}/libhoedown.so.3` + assembled `dist/lib/` (+ `dist/hoedown-libs.tgz|zip` with top-level `lib/`)
 - `build_all.sh` — reproducible one-click wrapper: pins koxtoolchain 2026.08 (`kobo`/`kindlepw2` `.tar.zst` via `zstd`), Docker `liasoft/antispy-build-android:ndk-r23c` (NDK r23c API 18/21), `hoedown` depth 1; supports `--arch` filter, stages to `dist/` and assembles `dist/lib/` + `hoedown-libs.tgz|zip`
-- `gethoedown.lua` — KOReader-side installer (LuaJIT, not standalone Lua) — downloads `lua-hoedown_<tag>.tgz` via GitHub API and extracts to `plugins/assistant.koplugin/` (legacy per-arch)
 - `*.tgz` at repo root is `/*.tgz` gitignored (legacy); `dist/` / `hoedown/` are also gitignored
 
 ## Build & Verify
@@ -66,11 +65,10 @@ Build script validates toolchain by checking `${ARG1}-gcc` exists; if not found 
 - **Env sourcing order matters**: `source x-compile.sh <target> env bare` must precede `./build_hoedown.sh <prefix>`.
 - **`BUILD`/`OUTPUT` are now clean**: fixed in `build_hoedown.sh` to `rm -rf "$OUTPUTDIR" "$BUILDDIR"` unconditionally; `build_all.sh` further stages each arch to `dist/` so overwrites are safe. For manual runs, `rm -rf BUILD OUTPUT` still works for extra hygiene.
 - **Android script**: root `build_android.sh` (API 18 for armeabi-v7a with `-Wl,--fix-cortex-a8 -march=armv7-a`, API 21 for arm64-v8a, NDK r23c at `/usr/local/android/android-ndk-r23c`). Android CFLAGS are size-optimized (`-Os -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-s`) → ~30% smaller than koxtoolchain builds (`CFLAGS=-g -O3`); **do NOT add `-fvisibility=hidden`** — hoedown has no visibility annotations, hidden + `--gc-sections` produces 2.5K empty libs (`dynsym 3`, `0 hoedown`, `.text 68B`). Fixed in `15e082c`; verified inside NDK container with `llvm-readelf` (hidden 2.5K/0 hoedown vs fixed 48K/45 hoedown).
-- **`gethoedown.lua` only runs inside KOReader**: depends on `ffi/loadlib`, `socket.http`, `rapidjson` from KOReader's `common/` and `frontend/`. Cannot test with plain `lua`/`luajit`. `GITHUB_PROXY=""` is truthy in Lua (`""` != nil), so `if GITHUB_PROXY then` always prepends (harmless when empty); set to URL prefix like `https://gh.llkk.cc/` to enable.
 - **No CI / no pre-commit**: no `.github/workflows`, no `opencode.json`, no formatter. Do not add CI assumptions.
 - **Do not commit clones**: `hoedown/`, `BUILD/`, `OUTPUT/`, `*.tgz` are gitignored/untracked intentionally. The consumer's `lib/*.so.3` ARE committed.
 
 ## Conventions
 - Shell scripts use `set -e`; keep it.
 - `build_android.sh` comments are in Chinese — preserve when editing.
-- Artifact naming: `lua-hoedown_<platform>.tgz` where platform tag maps to plugin subdir as above; `gethoedown.lua` does substring match `asset.name:find(tag)`.
+- Artifact naming: `lua-hoedown_<platform>.tgz` where platform tag maps to plugin subdir as above.
