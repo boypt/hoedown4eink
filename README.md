@@ -1,15 +1,15 @@
 # hoedown4eink
 
-This project provides build scripts to compile `libhoedown` and `lua-resty-hoedown` for e-ink devices running KOReader. The primary goal is to enable native Markdown rendering support for the [assistant.koplugin](https://github.com/omer-faruq/assistant.koplugin).
+This project provides build scripts to compile `libhoedown` for e-ink devices running KOReader. The primary goal is to enable native Markdown rendering support for the [assistant.koplugin](https://github.com/omer-faruq/assistant.koplugin).
 
 The release assets are cross-compiled using the KOReader koxtoolchain.
 
 ## Reproducible Build (Recommended)
 
-One-click build for all 5 `libhoedown.so.3` variants + `resty` Lua binding via `./build_all.sh`. All versions are pinned for reproducibility.
+One-click build for all 5 `libhoedown.so.3` variants via `./build_all.sh`. All versions are pinned for reproducibility.
 
 ```sh
-# all 5 archs + resty -> dist/
+# all 5 archs -> dist/
 ./build_all.sh
 
 # single arch only
@@ -24,7 +24,6 @@ One-click build for all 5 `libhoedown.so.3` variants + `resty` Lua binding via `
 - `koxtoolchain` **2026.08** — `kobo.tar.zst` / `kindlepw2.tar.zst` from `https://github.com/koreader/koxtoolchain/releases/download/2026.08/` (requires `zstd` to extract; cached at `/tmp/koxtoolchain-cache/`, installed to `~/x-tools/` or `/tmp/x-tools`)
 - Docker image `liasoft/antispy-build-android:ndk-r23c` — NDK **r23c** at `/usr/local/android/android-ndk-r23c`, API **18** for `armeabi-v7a` (`armv7a-linux-androideabi21-clang` + `-Wl,--fix-cortex-a8 -march=armv7-a`), API **21** for `arm64-v8a` (`aarch64-linux-android21-clang`)
 - `hoedown` `git clone --depth 1 https://github.com/hoedown/hoedown.git`
-- `lua-resty-hoedown` `git clone --depth 1 https://github.com/bungle/lua-resty-hoedown.git`
 
 **Prerequisites:** `tar`, `git`, `curl` or `wget`, `zstd` (for `*.tar.zst`), `docker` (only for Android builds), plus `make`/`strip` for native/koxtoolchain builds.
 
@@ -37,15 +36,12 @@ dist/
   x86_64/libhoedown.so.3         # native desktop/emulator
   android_armv7a/libhoedown.so.3 # API 18, ~48K stripped
   android_arm64/libhoedown.so.3  # API 21, ~57K stripped
-  resty/hoedown.lua
-  resty/hoedown/*.lua            # 9 files, pure Lua FFI binding
   lib/                           # assembled package root (for direct copy/tar)
     android_arm64/libhoedown.so.3
     android_armv7a/libhoedown.so.3
     armv7_hardfp/libhoedown.so.3
     armv7_softfp/libhoedown.so.3
     x86_64/libhoedown.so.3
-    resty/...
   hoedown-libs.tgz               # compressed package containing lib/ (see above)
   hoedown-libs.zip               # same content as zip (if zip available)
 ```
@@ -61,8 +57,6 @@ for d in armv7_hardfp armv7_softfp x86_64 android_armv7a android_arm64; do
   mkdir -p "../assistant.koplugin/lib/$d"
   cp -a "dist/$d/libhoedown.so.3" "../assistant.koplugin/lib/$d/"
 done
-mkdir -p ../assistant.koplugin/lib/resty
-cp -a dist/resty/. ../assistant.koplugin/lib/resty/
 
 # verify
 file ../assistant.koplugin/lib/*/libhoedown.so.3
@@ -108,7 +102,7 @@ This method uses a Lua script to download and install the correct files for your
 | Android ARM 64-bit        | `arm64-v8a`   | `build-android.sh arm64-v8a` (Docker)   | `android_arm64`  | ~57K |
 | Linux x86_64 (Desktop/Emulator) | `x86_64` | `lua-hoedown_x86_64.tgz` | `x86_64`           | ~75K |
 
-> Historical tag mapping: `build_hoedown.sh` tags `lua-hoedown_<tag>.tgz` with `<tag> = $(echo $TOOLCHAIN_PREFIX | cut -d- -f2)` → `kobo`/`kindlepw2`/`x86_64`. Consumer plugin renames to `armv7_hardfp`/`armv7_softfp`/`x86_64` (+ `android_*`). All 5 `libhoedown.so.3` + `resty/` are required under `assistant.koplugin/lib/`.
+> Historical tag mapping: `build_hoedown.sh` tags `lua-hoedown_<tag>.tgz` with `<tag> = $(echo $TOOLCHAIN_PREFIX | cut -d- -f2)` → `kobo`/`kindlepw2`/`x86_64`. Consumer plugin renames to `armv7_hardfp`/`armv7_softfp`/`x86_64` (+ `android_*`). All 5 `libhoedown.so.3` are required under `assistant.koplugin/lib/`.
 
 ## Verify Installation
 
@@ -130,7 +124,7 @@ If you prefer manual builds, the sections below call `build_hoedown.sh` / `build
 
 **Dependencies:** `make`, `strip`, `tar`, `git`, `zstd` (needed to extract `koxtoolchain/*.tar.zst`), plus `curl`/`wget` for toolchain download and `docker` for Android.
 
-All builds produce `OUTPUT/lib/libhoedown.so.3` + `OUTPUT/lib/resty/`; `build_all.sh` stages them into `dist/` as described above. Legacy packaging `lua-hoedown_<tag>.tgz` is still created by `build_hoedown.sh`.
+All builds produce `OUTPUT/lib/libhoedown.so.3`; `build_all.sh` stages them into `dist/` as described above. Legacy packaging `lua-hoedown_<tag>.tgz` is still created by `build_hoedown.sh`.
 
 ### Native Build
 

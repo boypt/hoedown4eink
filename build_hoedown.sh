@@ -45,21 +45,6 @@ build_hoedown() {
     install -m644 $LIBOBJ "$OUTPUTDIR/lib/"
 }
 
-# Function to check out lua-resty-hoedown
-checkout_lua_resty_hoedown() {
-    cd "$SCRIPTDIR"
-    echo "Cloning lua-resty-hoedown repository..."
-    if [[ -d lua-resty-hoedown ]]; then
-        echo "Updating existing lua-resty-hoedown checkout..."
-        cd lua-resty-hoedown
-        git fetch --depth 1 origin && git reset --hard origin/master
-    else
-        git clone --depth 1 https://github.com/bungle/lua-resty-hoedown.git
-        cd lua-resty-hoedown
-    fi
-    tar c lib | tar x -C ../OUTPUT
-}
-
 # Function to package the libraries and binary
 package_files() {
     cd "$SCRIPTDIR"
@@ -85,7 +70,6 @@ if [[ -n $ARG1 ]]; then
 fi
 
 build_hoedown
-checkout_lua_resty_hoedown
 package_files
 
 echo "Build and packaging completed successfully. ${TOOLCHAIN_PREFIX:-}"

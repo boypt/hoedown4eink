@@ -4,4 +4,3 @@ OUTPUT
 /*.tgz
 dist/
 hoedown/
-lua-resty-hoedown/

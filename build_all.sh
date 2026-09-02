@@ -9,7 +9,7 @@ usage() {
     cat <<'EOF'
 Usage: ./build_all.sh [--arch <arch>] [--help]
 
-  无参数: 一键构建全部 5 个 libhoedown.so.3 + resty (x86_64, kobo/armv7_hardfp, kindlepw2/armv7_softfp, android-armv7a, android-arm64)
+  无参数: 一键构建全部 5 个 libhoedown.so.3 (x86_64, kobo/armv7_hardfp, kindlepw2/armv7_softfp, android-armv7a, android-arm64)
   --arch:  仅构建单个架构
            可选值: x86_64 | kobo | kindlepw2 | android-armv7a | android-arm64
   --help:  显示此帮助
@@ -20,7 +20,6 @@ Usage: ./build_all.sh [--arch <arch>] [--help]
   dist/armv7_softfp/libhoedown.so.3   (kindlepw2)
   dist/android_armv7a/libhoedown.so.3
   dist/android_arm64/libhoedown.so.3
-  dist/resty/                         (lua-resty-hoedown 纯 Lua)
 
 示例:
   ./build_all.sh
@@ -97,7 +96,6 @@ KOX_VERSION="2026.08"
 KOX_BASE_URL="https://github.com/koreader/koxtoolchain/releases/download/${KOX_VERSION}"
 DOCKER_IMAGE="liasoft/antispy-build-android:ndk-r23c"
 HOEDOWN_URL="https://github.com/hoedown/hoedown.git"
-RESTY_URL="https://github.com/bungle/lua-resty-hoedown.git"
 
 # ========== 工具函数 ==========
 download_file() {
@@ -220,22 +218,6 @@ stage_output() {
     else
         echo "Warning: OUTPUT/lib/libhoedown.so.3 not found, skipping stage for $dest_subdir" >&2
     fi
-    # resty：只要 OUTPUT 中有就同步到 DIST/resty (幂等覆盖)
-    if [[ -d "$SCRIPTDIR/OUTPUT/lib/resty" ]]; then
-        echo "==> Staging resty -> $DIST/resty/"
-        mkdir -p "$DIST/resty"
-        cp -a "$SCRIPTDIR/OUTPUT/lib/resty/." "$DIST/resty/" 2>/dev/null || cp -a "$SCRIPTDIR/OUTPUT/lib/resty" "$DIST/" 2>/dev/null || true
-        # 同时确保顶层 hoedown.lua
-        if [[ -f "$SCRIPTDIR/OUTPUT/lib/resty/hoedown.lua" ]]; then
-            : # already covered
-            true
-        fi
-        # OUTPUT/lib/resty 结构是 lib/resty/*，tar x 后为 OUTPUT/lib/resty
-        # 确保 DIST/resty 包含 hoedown.lua
-        if [[ ! -f "$DIST/resty/hoedown.lua" && -f "$SCRIPTDIR/OUTPUT/lib/resty/hoedown.lua" ]]; then
-            cp -a "$SCRIPTDIR/OUTPUT/lib/resty/hoedown.lua" "$DIST/resty/"
-        fi
-    fi
 }
 
 # Android 产物暂存
@@ -253,24 +235,7 @@ stage_android() {
     fi
 }
 
-ensure_resty_fallback() {
-    if [[ -d "$DIST/resty" && -f "$DIST/resty/hoedown.lua" ]]; then
-        return 0
-    fi
-    echo "==> resty not yet staged, ensuring via git clone fallback..."
-    local tmp_rest
-    tmp_rest=$(mktemp -d)
-    if git clone --depth 1 "$RESTY_URL" "$tmp_rest/lua-resty-hoedown" 2>/dev/null; then
-        mkdir -p "$DIST/resty"
-        if [[ -d "$tmp_rest/lua-resty-hoedown/lib/resty" ]]; then
-            cp -a "$tmp_rest/lua-resty-hoedown/lib/resty/." "$DIST/resty/"
-        fi
-        echo "    resty staged from fallback clone"
-    else
-        echo "Warning: failed to clone lua-resty-hoedown for resty fallback" >&2
-    fi
-    rm -rf "$tmp_rest"
-}
+
 
 # ========== 初始化 DIST ==========
 mkdir -p "$DIST"
@@ -365,24 +330,6 @@ if should_build "android-arm64"; then
     stage_android "arm64-v8a" "android_arm64"
 fi
 
-# ========== 确保 resty 已收集 ==========
-# build_hoedown.sh 已克隆 lua-resty-hoedown 并放入 OUTPUT/lib/resty，
-# 优先从 x86_64/kobo/kindlepw2 的 OUTPUT 暂存；若仅构建 Android 则 fallback
-if [[ ! -d "$DIST/resty" || ! -f "$DIST/resty/hoedown.lua" ]]; then
-    # 尝试从最近一次 OUTPUT 暂存
-    if [[ -d "$SCRIPTDIR/OUTPUT/lib/resty" ]]; then
-        echo "==> Collecting resty from last OUTPUT..."
-        mkdir -p "$DIST/resty"
-        cp -a "$SCRIPTDIR/OUTPUT/lib/resty/." "$DIST/resty/" 2>/dev/null || true
-    fi
-fi
-# 若仍缺失，使用 git fallback
-if [[ ! -d "$DIST/resty" || ! -f "$DIST/resty/hoedown.lua" ]]; then
-    ensure_resty_fallback
-else
-    echo "==> resty already staged at $DIST/resty/"
-fi
-
 # ========== 打包（适配 assistant.koplugin 直接跟踪结构） ==========
 # 用户要求：build_all.sh 直接输出包含以下结构的压缩包（不再是旧的 lua-hoedown_kobo.tgz 分包）：
 #   lib/android_arm64/libhoedown.so.3
@@ -390,7 +337,6 @@ fi
 #   lib/armv7_hardfp/libhoedown.so.3
 #   lib/armv7_softfp/libhoedown.so.3
 #   lib/x86_64/libhoedown.so.3
-#   lib/resty/hoedown.lua + lib/resty/hoedown/*.lua
 # 该压缩包可直接解压到 assistant.koplugin 根目录（tar xzf -C ../assistant.koplugin）或 dist/lib
 PKG_DIR="$DIST/lib"
 PKG_TGZ="$DIST/hoedown-libs.tgz"
@@ -411,11 +357,6 @@ for d in armv7_hardfp armv7_softfp x86_64 android_armv7a android_arm64; do
         echo "  skip lib/$d/libhoedown.so.3 (not built)" >&2
     fi
 done
-if [[ -d "$DIST/resty" ]]; then
-    mkdir -p "$PKG_DIR/resty"
-    cp -a "$DIST/resty/." "$PKG_DIR/resty/"
-    echo "  staged lib/resty/"
-fi
 # 生成压缩包（两者都提供，优先 tgz）
 if [[ -d "$PKG_DIR" ]] && ls "$PKG_DIR"/*/libhoedown.so.3 1>/dev/null 2>&1; then
     echo "  creating $PKG_TGZ ..."
@@ -440,13 +381,8 @@ echo "=================================================================="
 echo "DIST = $DIST"
 echo ""
 if ls "$DIST"/*/libhoedown.so.3 1>/dev/null 2>&1; then
-    echo "--- ls -lh dist/*/libhoedown.so.3 dist/resty ---"
+    echo "--- ls -lh dist/*/libhoedown.so.3 ---"
     ls -lh "$DIST"/*/libhoedown.so.3 2>&1 || true
-    if [[ -d "$DIST/resty" ]]; then
-        ls -lh "$DIST/resty" 2>&1 || true
-        # 若 resty 下有多文件，列出详情
-        ls -lh "$DIST/resty/hoedown.lua" "$DIST/resty/hoedown" 2>&1 | head -n 30 || true
-    fi
     echo ""
     echo "--- file dist/*/libhoedown.so.3 ---"
     file "$DIST"/*/libhoedown.so.3 2>&1 || true
@@ -474,14 +410,11 @@ echo "  cp -a \"$DIST\"/armv7_softfp/libhoedown.so.3  ../assistant.koplugin/lib/
 echo "  cp -a \"$DIST\"/x86_64/libhoedown.so.3        ../assistant.koplugin/lib/x86_64/libhoedown.so.3"
 echo "  cp -a \"$DIST\"/android_armv7a/libhoedown.so.3 ../assistant.koplugin/lib/android_armv7a/libhoedown.so.3"
 echo "  cp -a \"$DIST\"/android_arm64/libhoedown.so.3  ../assistant.koplugin/lib/android_arm64/libhoedown.so.3"
-echo "  cp -a \"$DIST\"/resty                         ../assistant.koplugin/lib/resty"
-echo "  cp -a \"$DIST\"/resty/hoedown.lua             ../assistant.koplugin/lib/resty/hoedown.lua"
 echo ""
 echo "Or bulk copy:"
 echo "  for d in armv7_hardfp armv7_softfp x86_64 android_armv7a android_arm64; do"
 echo "    mkdir -p \"../assistant.koplugin/lib/\$d\""
 echo "    cp -a \"$DIST/\$d/libhoedown.so.3\" \"../assistant.koplugin/lib/\$d/\""
 echo "  done"
-echo "  mkdir -p ../assistant.koplugin/lib/resty && cp -a \"$DIST/resty/.\" ../assistant.koplugin/lib/resty/"
 echo ""
 echo "Done."
