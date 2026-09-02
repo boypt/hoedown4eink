@@ -69,7 +69,7 @@ If you prefer manual builds, the sections below call `build_hoedown.sh` / `build
 
 **Dependencies:** `make`, `strip`, `tar`, `git`, `zstd` (needed to extract `koxtoolchain/*.tar.zst`), plus `curl`/`wget` for toolchain download and `docker` for Android.
 
-All builds produce `OUTPUT/lib/libhoedown.so.3`; `build_all.sh` stages them into `dist/` as described above. Legacy packaging `lua-hoedown_<tag>.tgz` is still created by `build_hoedown.sh`.
+All builds (native, koxtoolchain and Android) compile inside `hoedown/` and leave `hoedown/libhoedown.so.3`; `build_all.sh` stages it into `dist/` as described above. There is no `BUILD/` / `OUTPUT/` intermediate directory.
 
 ### Native Build
 
@@ -77,8 +77,7 @@ For a native build (e.g., on `Linux x86_64`), simply run the build script:
 
 ```sh
 ./build_hoedown.sh
-# output: OUTPUT/lib/libhoedown.so.3 -> dist/x86_64/libhoedown.so.3 (via build_all.sh)
-# or legacy: lua-hoedown_x86_64.tgz
+# output: hoedown/libhoedown.so.3 -> dist/x86_64/libhoedown.so.3 (via build_all.sh)
 ```
 
 ### Cross-Compilation (Manual)

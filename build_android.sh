@@ -87,18 +87,13 @@ echo "  LDFLAGS=$LDFLAGS"
 # 解析 hoedown 源码位置，脚本可在仓库根目录直接运行
 # Makefile 位于 hoedown/ 子目录（由 build_hoedown.sh 克隆或手动 git clone），而非仓库根目录
 if [ ! -d "$HOEDOWN_SRC" ]; then
-  if [ -d "$SCRIPTDIR/BUILD/hoedown" ]; then
-    HOEDOWN_SRC="$SCRIPTDIR/BUILD/hoedown"
-    echo "Found hoedown source at BUILD/hoedown, using $HOEDOWN_SRC"
-  else
-    echo "hoedown source not found at $SCRIPTDIR/hoedown, cloning..."
-    if ! command -v git >/dev/null 2>&1; then
-      echo "Error: git not found, cannot clone hoedown" >&2
-      exit 1
-    fi
-    git clone --depth 1 https://github.com/hoedown/hoedown.git "$HOEDOWN_SRC"
-    echo "Cloned hoedown to $HOEDOWN_SRC"
+  echo "hoedown source not found at $SCRIPTDIR/hoedown, cloning..."
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Error: git not found, cannot clone hoedown" >&2
+    exit 1
   fi
+  git clone --depth 1 https://github.com/hoedown/hoedown.git "$HOEDOWN_SRC"
+  echo "Cloned hoedown to $HOEDOWN_SRC"
 fi
 
 if [ ! -f "$HOEDOWN_SRC/Makefile" ]; then

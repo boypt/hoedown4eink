@@ -245,31 +245,17 @@ ensure_toolchain() {
     ls -R "$parent_dir/x-tools/$tc_dir" 2>&1 | head -n 30 >&2 || ls -R "$parent_dir/x-tools/$tc" 2>&1 | head -n 30 >&2 || true
 }
 
-# 暂存 OUTPUT/lib 到 DIST
-stage_output() {
-    local dest_subdir="$1"   # e.g. armv7_hardfp / x86_64
+# 统一暂存：原生/koxtoolchain 与 Android 都在 hoedown/ 源码树内构建，
+# 编译产物统一从 $SCRIPTDIR/hoedown/libhoedown.so.3 读，不依赖 OUTPUT/
+stage_from_hoedown() {
+    local dest_subdir="$1"
     local dest="$DIST/$dest_subdir"
     mkdir -p "$dest"
-    if [[ -f "$SCRIPTDIR/OUTPUT/lib/libhoedown.so.3" ]]; then
+    if [[ -f "$SCRIPTDIR/hoedown/libhoedown.so.3" ]]; then
         echo "==> Staging libhoedown.so.3 -> $dest/"
-        cp -a "$SCRIPTDIR/OUTPUT/lib/libhoedown.so.3" "$dest/"
+        cp -a "$SCRIPTDIR/hoedown/libhoedown.so.3" "$dest/"
     else
-        echo "Warning: OUTPUT/lib/libhoedown.so.3 not found, skipping stage for $dest_subdir" >&2
-    fi
-}
-
-# Android 产物暂存
-stage_android() {
-    local src_arch="$1"   # armeabi-v7a / arm64-v8a
-    local dest_subdir="$2" # android_armv7a / android_arm64
-    local dest="$DIST/$dest_subdir"
-    mkdir -p "$dest"
-    local src="$SCRIPTDIR/hoedown/libhoedown.so.3"
-    if [[ -f "$src" ]]; then
-        echo "==> Staging Android $src_arch libhoedown.so.3 -> $dest/"
-        cp -a "$src" "$dest/libhoedown.so.3"
-    else
-        echo "Warning: $src not found after Android build for $src_arch" >&2
+        echo "Warning: hoedown/libhoedown.so.3 not found, skipping stage for $dest_subdir" >&2
     fi
 }
 
@@ -295,7 +281,7 @@ if should_build "x86_64"; then
     echo "=================================================================="
     # 原生直接调用 build_hoedown.sh，无需工具链
     "$SCRIPTDIR/build_hoedown.sh"
-    stage_output "x86_64"
+    stage_from_hoedown "x86_64"
 fi
 
 # ========== 构建 kobo (armv7_hardfp) ==========
@@ -313,7 +299,7 @@ if should_build "kobo"; then
     KOBO_BIN="$(toolchain_bin "kobo" "arm-kobo-linux-gnueabihf")"
     echo "  using $KOBO_BIN/arm-kobo-linux-gnueabihf-gcc"
     PATH="$KOBO_BIN:$PATH" "$SCRIPTDIR/build_hoedown.sh" arm-kobo-linux-gnueabihf
-    stage_output "armv7_hardfp"
+    stage_from_hoedown "armv7_hardfp"
 fi
 
 # ========== 构建 kindlepw2 (armv7_softfp) ==========
@@ -329,7 +315,7 @@ if should_build "kindlepw2"; then
     PW2_BIN="$(toolchain_bin "kindlepw2" "arm-kindlepw2-linux-gnueabi")"
     echo "  using $PW2_BIN/arm-kindlepw2-linux-gnueabi-gcc"
     PATH="$PW2_BIN:$PATH" "$SCRIPTDIR/build_hoedown.sh" arm-kindlepw2-linux-gnueabi
-    stage_output "armv7_softfp"
+    stage_from_hoedown "armv7_softfp"
 fi
 
 # ========== 构建 Android (docker) ==========
@@ -351,7 +337,7 @@ if should_build "android-armv7a"; then
         -w /workspace \
         "$DOCKER_IMAGE" \
         /workspace/build_android.sh armeabi-v7a
-    stage_android "armeabi-v7a" "android_armv7a"
+    stage_from_hoedown "android_armv7a"
 fi
 
 if should_build "android-arm64"; then
@@ -364,7 +350,7 @@ if should_build "android-arm64"; then
         -w /workspace \
         "$DOCKER_IMAGE" \
         /workspace/build_android.sh arm64-v8a
-    stage_android "arm64-v8a" "android_arm64"
+    stage_from_hoedown "android_arm64"
 fi
 
 # ========== 打包（适配 assistant.koplugin 直接跟踪结构） ==========

@@ -4,12 +4,9 @@
 set -e
 set -o pipefail
 SCRIPTDIR=$(dirname "$(readlink -f "$0")")
-OUTPUTDIR="$SCRIPTDIR/OUTPUT"
 # 源码树持久化在 $SCRIPTDIR/hoedown（gitignored），多架构循环共用：
 # 首次缺失才 clone，之后每次只 make clean + 重新 make，避免每个架构各 clone 一次
 HOEDOWN_SRC="$SCRIPTDIR/hoedown"
-rm -rf "$OUTPUTDIR"
-mkdir -p "$OUTPUTDIR"
 
 # Dependency checks: verify required commands exist
 for cmd in make strip tar git; do
@@ -42,22 +39,6 @@ build_hoedown() {
 
     echo "Stripping $LIBOBJ..."
     ${TOOLCHAIN_PREFIX}strip $LIBOBJ
-
-    mkdir -p "$OUTPUTDIR/lib/"
-    install -m644 $LIBOBJ "$OUTPUTDIR/lib/"
-}
-
-# Function to package the libraries and binary
-package_files() {
-    cd "$SCRIPTDIR"
-    echo "Packaging files into tar.gz..."
-
-    cd OUTPUT
-    local PACKAGETAG=
-    [[ -n $TOOLCHAIN_PREFIX ]] &&
-        PACKAGETAG=$(echo $TOOLCHAIN_PREFIX | cut -d- -f2)
-    [[ -z $TOOLCHAIN_PREFIX ]] && PACKAGETAG="$(uname -m)"
-    tar -czvf ../lua-hoedown_${PACKAGETAG}.tgz .
 }
 
 # Main script execution
@@ -72,6 +53,6 @@ if [[ -n $ARG1 ]]; then
 fi
 
 build_hoedown
-package_files
 
-echo "Build and packaging completed successfully. ${TOOLCHAIN_PREFIX:-}"
+echo "Build completed successfully. ${TOOLCHAIN_PREFIX:-}"
+echo "  artifact: $HOEDOWN_SRC/libhoedown.so.3 (staged to dist/ by build_all.sh)"
