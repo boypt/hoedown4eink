@@ -2,3 +2,6 @@ BUILD
 OUTPUT
 *.swp
 /*.tgz
+dist/
+hoedown/
+lua-resty-hoedown/
