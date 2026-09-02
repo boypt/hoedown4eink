@@ -28,7 +28,9 @@ export RANLIB=llvm-ranlib
 export STRIP=llvm-strip
 
 # CFLAGS 优化：去除 -g，使用 -Os 优化体积，开启 sections 隔离以便 gc-sections 裁减
-export CFLAGS="-Os -pipe -fomit-frame-pointer -fPIC -std=gnu11 -fvisibility=hidden -ffunction-sections -fdata-sections -Isrc"
+# NOTE: 移除 -fvisibility=hidden — hoedown 无 visibility 标注，hidden 会使全部 hoedown_* 不进 .dynsym，
+# 配合 --gc-sections 会被 LLD 当作无用段裁掉，得到 2.5K 空壳库（验证：dynsym 2个，无 hoedown_*）。
+export CFLAGS="-Os -pipe -fomit-frame-pointer -fPIC -std=gnu11 -ffunction-sections -fdata-sections -Isrc"
 
 # LDFLAGS 优化：加入 -Wl,-s 在链接时丢弃符号，确保 --gc-sections 生效
 export LDFLAGS="-shared -Wl,-soname,libhoedown.so.3 -Wl,--as-needed,--gc-sections -Wl,-s -no-canonical-prefixes $EXTRA_LDFLAGS"
