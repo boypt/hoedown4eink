@@ -149,26 +149,28 @@ ensure_toolchain() {
     fi
 
     # 判断是否已安装
-    # 优先检查 ~/x-tools，其次 /tmp/x-tools
-    local x_tools_home="$HOME/x-tools"
+    # 优先检查项目内 x-tools，其次 ~/x-tools、/tmp/x-tools（兼容旧安装）
+    local proj_x_tools="$SCRIPTDIR/x-tools"
+    local home_x_tools="$HOME/x-tools"
+    local tmp_x_tools="/tmp/x-tools"
     # HOME 不可写时回退到 /tmp/x-tools
     if [[ ! -w "$HOME" ]] 2>/dev/null || [[ ! -d "$HOME" ]]; then
-        x_tools_home="/tmp/x-tools"
+        home_x_tools="/tmp/x-tools"
     fi
-    local gcc_path="$x_tools_home/$tc/bin/${prefix}-gcc"
-    local alt_gcc="/tmp/x-tools/$tc/bin/${prefix}-gcc"
-
-    if [[ -x "$gcc_path" ]] || [[ -x "$alt_gcc" ]]; then
-        echo "==> Toolchain $tc already installed, skipping download."
-        return 0
-    fi
+    for cand in "$proj_x_tools/$tc/bin/${prefix}-gcc" "$home_x_tools/$tc/bin/${prefix}-gcc" "$tmp_x_tools/$tc/bin/${prefix}-gcc"; do
+        if [[ -x "$cand" ]]; then
+            echo "==> Toolchain $tc already installed at $(dirname "$(dirname "$cand")"), skipping download."
+            return 0
+        fi
+    done
     # 也检查 PATH 中是否已有对应 gcc (用户自行安装的情况)
     if command -v "${prefix}-gcc" >/dev/null 2>&1; then
         echo "==> ${prefix}-gcc found in PATH, skipping download."
         return 0
     fi
 
-    local cache_dir="/tmp/koxtoolchain-cache"
+    # 项目内缓存（可提交 .gitignore，已在仓库内持久化，避免 /tmp 丢失）
+    local cache_dir="$SCRIPTDIR/.cache/koxtoolchain"
     mkdir -p "$cache_dir"
     local archive="$cache_dir/${tc}.tar.zst"
     local url="${KOX_BASE_URL}/${tc}.tar.zst"
@@ -176,35 +178,69 @@ ensure_toolchain() {
     if [[ ! -f "$archive" ]]; then
         echo "==> Downloading $tc toolchain $KOX_VERSION..."
         echo "    URL: $url"
+        echo "    cache: $archive (project-local, reuse on next run)"
         download_file "$url" "$archive"
     else
-        echo "==> Using cached $archive"
+        echo "==> Using cached $archive (project-local)"
     fi
 
-    # 选择安装目录：优先 $HOME/x-tools，若 HOME 不可写则 /tmp/x-tools
-    local install_root="$HOME/x-tools"
-    if [[ ! -w "$HOME" ]] 2>/dev/null; then
-        install_root="/tmp/x-tools"
-        echo "==> HOME not writable, installing to $install_root"
+    # 安装目录：优先项目内 x-tools（便于仓库携带与复现），回退到 HOME
+    local install_root="$SCRIPTDIR"
+    # 若项目目录不可写，回退到 HOME
+    if [[ ! -w "$SCRIPTDIR" ]] 2>/dev/null; then
+        install_root="$HOME"
+        echo "==> Project dir not writable, installing to $install_root/x-tools"
+    else
+        echo "==> Installing to $install_root/x-tools"
     fi
-    mkdir -p "$install_root"
 
     echo "==> Extracting $tc.tar.zst to $install_root (requires zstd)..."
-    # 尝试 tar --zstd，若不支持则用 zstd -d | tar
+    # 内含顶级目录 x-tools/，需解压到其父目录（$install_root 的父级是 $SCRIPTDIR 或 $HOME）
+    # 兼容两种 tar 调用
+    local parent_dir="$install_root"
+    # 若 install_root 本身以 x-tools 结尾，则取其父目录
+    if [[ "$install_root" == */x-tools ]]; then
+        parent_dir="$(dirname "$install_root")"
+    fi
+    # 工具链包顶层为 x-tools/<tc>/...，已在 $install_root 下时会自动创建 x-tools/<tc>
+    # 为避免双重 x-tools/x-tools，需根据包内容判断：包内已含 x-tools 前缀，直接解到 parent
     if tar --help 2>&1 | grep -q "zstd"; then
-        tar --zstd -xf "$archive" -C "$install_root"
+        # 使用 --zstd 若支持，否则回退
+        if ! tar --zstd -tf "$archive" 2>&1 | head -1 | grep -q "^x-tools/"; then
+            # 包内无 x-tools 前缀（少见），直接解到 install_root/x-tools
+            mkdir -p "$install_root/x-tools"
+            tar --zstd -xf "$archive" -C "$install_root/x-tools"
+        else
+            tar --zstd -xf "$archive" -C "$parent_dir"
+        fi
     else
-        zstd -d -c "$archive" | tar -xf - -C "$install_root"
+        if ! zstd -d -c "$archive" | tar -tf - 2>&1 | head -1 | grep -q "^x-tools/"; then
+            mkdir -p "$install_root/x-tools"
+            zstd -d -c "$archive" | tar -xf - -C "$install_root/x-tools"
+        else
+            zstd -d -c "$archive" | tar -xf - -C "$parent_dir"
+        fi
     fi
 
-    echo "==> Toolchain $tc installed to $install_root/$tc"
-    # 验证
-    if [[ -x "$install_root/$tc/bin/${prefix}-gcc" ]]; then
-        echo "    Verified: $install_root/$tc/bin/${prefix}-gcc"
-    else
-        echo "Warning: expected $install_root/$tc/bin/${prefix}-gcc not found after extraction" >&2
-        ls -R "$install_root/$tc" 2>&1 | head -n 30 >&2 || true
+    # 同步到 HOME 以兼容 x-compile.sh 默认路径（它固定查找 ~/x-tools）
+    local installed_gcc="$parent_dir/x-tools/$tc/bin/${prefix}-gcc"
+    # 若安装到了项目内，也在 HOME 下创建符号链接/复制以兼容旧脚本
+    if [[ "$parent_dir" == "$SCRIPTDIR" && "$HOME" != "$SCRIPTDIR" && -x "$installed_gcc" && ! -x "$HOME/x-tools/$tc/bin/${prefix}-gcc" ]]; then
+        echo "==> Linking $installed_gcc -> $HOME/x-tools (for x-compile.sh compatibility)"
+        mkdir -p "$HOME/x-tools"
+        ln -sfn "$parent_dir/x-tools/$tc" "$HOME/x-tools/$tc" 2>/dev/null || cp -a "$parent_dir/x-tools/$tc" "$HOME/x-tools/" 2>/dev/null || true
     fi
+
+    echo "==> Toolchain $tc installed"
+    # 验证（依次检查项目内、HOME、/tmp）
+    for cand in "$SCRIPTDIR/x-tools/$tc/bin/${prefix}-gcc" "$HOME/x-tools/$tc/bin/${prefix}-gcc" "/tmp/x-tools/$tc/bin/${prefix}-gcc"; do
+        if [[ -x "$cand" ]]; then
+            echo "    Verified: $cand"
+            return 0
+        fi
+    done
+    echo "Warning: expected ${prefix}-gcc not found after extraction" >&2
+    ls -R "$parent_dir/x-tools/$tc" 2>&1 | head -n 30 >&2 || true
 }
 
 # 暂存 OUTPUT/lib 到 DIST

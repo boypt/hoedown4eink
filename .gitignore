@@ -4,3 +4,5 @@ OUTPUT
 /*.tgz
 dist/
 hoedown/
+.cache/
+x-tools/
